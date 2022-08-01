@@ -1,0 +1,13 @@
+     1                                  global switch_task
+     2                                  switch_task:
+     3 00000000 66678B0424                  mov eax,[esp]
+     4 00000005 66678B5808                  mov ebx,[eax+8]
+     5 0000000A 66678B480C                  mov ecx,[eax+12]
+     6 0000000F 66678B5010                  mov edx,[eax+16]
+     7 00000014 66678B6014                  mov esp,[eax+20]
+     8 00000019 66678B6818                  mov ebp,[eax+24]
+     9 0000001E 66678B701C                  mov esi,[eax+28]
+    10 00000023 66678B7820                  mov edi,[eax+32]
+    11 00000028 6667FF30                    push dword [eax]
+    12 0000002C 66678B4004                  mov eax,[eax+4]
+    13 00000031 C3                          ret

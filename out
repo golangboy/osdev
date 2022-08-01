@@ -1,0 +1,94 @@
+     1                                  org 0x7c00
+     2                                  stop:
+     3                                  
+     4                                  ; A20
+     5 00000000 E492                    in al,0x92
+     6 00000002 0C02                    or al,0000_0010b
+     7 00000004 E692                    out 0x92,al
+     8                                  
+     9                                  ; CR0
+    10 00000006 0F20C0                  mov eax,cr0
+    11 00000009 6683C801                or eax,1
+    12 0000000D 0F22C0                  mov cr0,eax
+    13                                  
+    14 00000010 0F0116[2000]            lgdt [gdt_array]
+    15 00000015 B80800                  mov ax,0x08
+    16 00000018 8ED8                    mov ds,ax
+    17 0000001A EA[5C01]0800            jmp 0x8:fuck
+    18                                  
+    19 0000001F 90                      nop
+    20                                  gdt_array:
+    21 00000020 0F00                    	dw 15
+    22 00000022 [26000000]              	dd real
+    23                                  real:
+    24 00000026 00000000                	dd 0x0000000
+    25 0000002A 00000000                	dd 0x0000000
+    26                                  	
+    27 0000002E FFFF0000                	dd 0x0000FFFF
+    28 00000032 009ECF00                	dd 0x00CF9E00
+    29                                  
+    30                                  idt_array:
+    31 00000036 1F01                    	dw 36*8-1
+    32 00000038 [3C000000]              	dd rrea
+    33                                  rrea:
+    34 0000003C 717D080000AE0000        	dq 0xAE0000087D71
+    35 00000044 717D080000AE0000        	dq 0xAE0000087D71
+    36 0000004C 717D080000AE0000        	dq 0xAE0000087D71
+    37 00000054 717D080000AE0000        	dq 0xAE0000087D71
+    38 0000005C 717D080000AE0000-       	times 28 dq 0xAE0000087D71	
+    38 0000005C <rep 1Ch>          
+    39 0000013C A87D080000AE0000        	dq 0xAE0000087DA8
+    40 00000144 A87D080000AE0000        	dq 0xAE0000087DA8
+    41 0000014C A87D080000AE0000        	dq 0xAE0000087DA8
+    42 00000154 A87D080000AE0000        	dq 0xAE0000087DA8
+    43                                  [bits 32]
+    44                                  fuck:
+    45 0000015C B8[36000000]            	mov eax,idt_array
+    46 00000161 0F011D[36000000]        	lidt [idt_array]
+    47 00000168 B8[71010000]            	mov eax,myfunc
+    48 0000016D CD10                    	int 0x10
+    49                                  yy:
+    50 0000016F EBFE                    	jmp yy
+    51                                  myfunc:
+    52 00000171 B8[9B010000]            	mov eax,timefunc
+    53 00000176 90                      	nop
+    54 00000177 B011                    	mov al,0x11
+    55 00000179 E620                    	out 0x20,al
+    56 0000017B E6A0                    	out 0xa0,al
+    57                                  
+    58 0000017D B020                    	mov al,0x20
+    59 0000017F E621                    	out 0x21,al
+    60                                  
+    61 00000181 B028                    	mov al,0x28
+    62 00000183 E6A1                    	out 0xa1,al
+    63                                  	
+    64 00000185 B004                    	mov al,0x4
+    65 00000187 E621                    	out 0x21,al
+    66                                  
+    67 00000189 B002                    	mov al,0x02
+    68 0000018B E6A1                    	out 0xa1,al
+    69                                  
+    70 0000018D B001                    	mov al,0x01
+    71 0000018F E621                    	out 0x21,al
+    72 00000191 E6A1                    	out 0xa1,al
+    73                                  
+    74 00000193 B000                    	mov al,0
+    75 00000195 E621                    	out 0x21,al
+    76 00000197 E6A1                    	out 0xa1,al
+    77                                  
+    78                                  	; mov al,0x36
+    79                                  	; out 0x43,al
+    80                                  
+    81                                  	; mov al,0x54
+    82                                  	; out 0x40,al
+    83                                  
+    84                                  	; mov al,0x02
+    85                                  	; out 0x40,al
+    86                                  	; sti
+    87                                  rr:
+    88 00000199 EBFE                    	jmp rr
+    89                                  timefunc:
+    90                                  
+    91 0000019B EBFE                    	jmp timefunc
+    92 0000019D 00<rep 61h>             times 510-($-$$) db 0
+    93 000001FE 55AA                    db 0x55,0xaa

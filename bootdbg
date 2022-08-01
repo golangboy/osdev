@@ -1,0 +1,139 @@
+     1                                  
+     2                                  org 0x7c00
+     3                                  
+     4                                  ;当前处于实模式
+     5 00000000 66BB00000000            	mov ebx,0
+     6 00000006 66BA00000000                mov edx,0
+     7 0000000C BF[FA00]                	mov di,_MemChkBuf ;请忽略es,假设已经正确设置好了
+     8                                  .loop:
+     9 0000000F 66B820E80000            	mov eax,0e820h
+    10 00000015 66B914000000            	mov ecx,20
+    11 0000001B 66BA50414D53            	mov edx,0534D4150h ;'SMAP'
+    12 00000021 CD15                    	int 15h
+    13                                  
+    14 00000023 7210                    	jc LABEL_MEM_CHK_FAIL ;检查CF，是否发生错误
+    15 00000025 83C714                  	add di,20	;由于执行INT 15h之后es和di不发生改变，就需要手动修改
+    16 00000028 66FF06[F800]            	inc dword [_dwMCRNumber] ;记录ARDS的数量
+    17 0000002D 6683FB00                	cmp ebx,0;判断是否到达最后一个内存区域
+    18                                  
+    19 00000031 75DC                    	jne .loop
+    20 00000033 EB09                    	jmp LABEL_MEM_CHK_OK ;ebx=0到达最后一个内存区域
+    21                                  LABEL_MEM_CHK_FAIL:
+    22 00000035 66C706[F800]000000-     	mov dword [_dwMCRNumber],0
+    22 0000003D 00                 
+    23                                  LABEL_MEM_CHK_OK:
+    24                                  ;     jmp $
+    25                                  
+    26                                  ; 扇区数
+    27 0000003E B8F201                  mov ax,0x1f2
+    28 00000041 89C2                    mov dx,ax
+    29 00000043 B8FF00                  mov ax,0xff
+    30 00000046 EE                      out dx,al
+    31                                  
+    32                                  ;0-7
+    33 00000047 B8F301                  mov ax,0x1f3
+    34 0000004A 89C2                    mov dx,ax
+    35 0000004C B80000                  mov ax,0
+    36 0000004F EE                      out dx,al
+    37                                  
+    38                                  ;8-15
+    39 00000050 B8F401                  mov ax,0x1f4
+    40 00000053 89C2                    mov dx,ax
+    41 00000055 B80000                  mov ax,0
+    42 00000058 EE                      out dx,al
+    43                                  
+    44                                  ;16-23
+    45 00000059 B8F501                  mov ax,0x1f5
+    46 0000005C 89C2                    mov dx,ax
+    47 0000005E B80000                  mov ax,0
+    48 00000061 EE                      out dx,al
+    49                                  
+    50                                  ;24-27
+    51 00000062 B8F601                  mov ax,0x1f6
+    52 00000065 89C2                    mov dx,ax
+    53 00000067 B8E000                  mov ax,0xe0
+    54 0000006A EE                      out dx,al
+    55                                  
+    56                                  ;请求读
+    57 0000006B B8F701                  mov ax,0x1f7
+    58 0000006E 89C2                    mov dx,ax
+    59 00000070 B82000                  mov ax,0x20
+    60 00000073 EE                      out dx,al
+    61                                  
+    62                                  not_ready:
+    63                                  ;检测状态
+    64 00000074 EC                      in al,dx
+    65 00000075 2408                    and al,0x08
+    66 00000077 3C08                    cmp al,0x08
+    67 00000079 75F9                    jnz not_ready
+    68                                  
+    69                                  
+    70                                  ;读取次数
+    71 0000007B B900FF                  mov cx,65280
+    72                                  
+    73                                  ;写入的位置
+    74 0000007E BB0000                  mov bx,0x000
+    75                                  
+    76                                  read:
+    77                                  ;开始读取数据
+    78 00000081 B8F001                  mov ax,0x1f0
+    79 00000084 89C2                    mov dx,ax
+    80 00000086 ED                      in ax,dx
+    81 00000087 8907                    mov [bx],ax
+    82 00000089 83C302                  add bx,2
+    83 0000008C E2F3                    loop read
+    84                                  
+    85                                  nothing:
+    86 0000008E EB00                    jmp protect_mode
+    87                                  
+    88                                  
+    89                                  
+    90                                  protect_mode:
+    91                                      ;A20
+    92 00000090 B89200                      mov byte ax,0x92
+    92          ******************       warning: invalid register size specification ignored [-w+regsize]
+    93 00000093 89C2                        mov dx,ax
+    94 00000095 ED                          in ax,dx
+    95 00000096 83C802                      or ax,2
+    96 00000099 EF                          out dx,ax
+    97                                  
+    98 0000009A 0F20C0                      mov eax,cr0
+    99 0000009D 6683C801                    or eax,1
+   100 000000A1 0F22C0                      mov cr0,eax
+   101 000000A4 BB[B800]                    mov bx,gdt
+   102 000000A7 0F0117                      lgdt [bx]
+   103 000000AA B81000                      mov ax,0x10
+   104 000000AD 8ED8                        mov ds,ax
+   105 000000AF 8ED0                        mov ss,ax
+   106 000000B1 EA[D600]0B00                jmp 11:to_main
+   107                                  
+   108                                  nt:
+   109 000000B6 EBFE                        jmp nt
+   110                                  gdt:
+   111 000000B8 1700                    dw 23
+   112 000000BA [BE000000]              dd gdt_array
+   113                                  
+   114                                  gdt_array:
+   115 000000BE 0000000000000000        dq 0
+   116 000000C6 FFFF0000009ECF00        dq 0xCF9E000000FFFF
+   117 000000CE FFFF00000092CF00        dq 0xCF92000000FFFF
+   118                                  
+   119                                  to_main:
+   120                                  [bits 32]
+   121 000000D6 B818000000              mov eax,0x18
+   122 000000DB 8B00                    mov eax, [eax]
+   123 000000DD BD00000000              mov ebp,0
+   124 000000E2 BCFFFF0000              mov esp,0xffff
+   125                                  
+   126                                  
+   127 000000E7 68[FA000000]            push dword _MemChkBuf
+   128 000000EC 68[F8000000]            push dword _dwMCRNumber
+   129 000000F1 FFD0                    call eax
+   130 000000F3 83C408                  add esp,8
+   131                                  st:
+   132 000000F6 EBFE                    jmp st
+   133 000000F8 0000                    _dwMCRNumber: dw 0   ;记录ARDS的数量
+   134 000000FA 00<rep 100h>            _MemChkBuf: times 256 db 0
+   135 000001FA 00<rep 4h>              times 510-($-$$) db 0
+   136 000001FE 55                      db 0x55
+   137 000001FF AA                      db 0xaa

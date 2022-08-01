@@ -1,0 +1,184 @@
+     1                                  org 0x7c00
+     2                                  
+     3                                  ;
+     4 00000000 B89200                  mov ax,0x92
+     5 00000003 89C2                    mov dx,ax
+     6 00000005 ED                      in ax,dx
+     7 00000006 83C802                  or ax,2
+     8 00000009 EF                      out dx,ax
+     9                                  ;
+    10                                  
+    11                                  ;
+    12 0000000A 0F20C0                  mov eax,cr0
+    13 0000000D 6683C801                or eax,1
+    14 00000011 0F22C0                  mov cr0,eax
+    15                                  ;
+    16 00000014 0F0116[7600]            lgdt [gdtptr]
+    17 00000019 0F011E[CC00]            lidt [idtptr]
+    18 0000001E B84800                  mov ax,0x48
+    19 00000021 0F00D8                  ltr ax
+    20                                  ; mov ax,0x10
+    21                                  ; mov ds,ax
+    22                                  ; mov ax,[gdtptr]
+    23                                  
+    24 00000024 EA[2900]0800            jmp 0x8:switch8
+    25                                  [bits 32]
+    26                                  switch8:
+    27                                      ;;
+    28                                      
+    29 00000029 66B83800                    mov ax,(7<<3)|(0)
+    30 0000002D 8ED8                        mov ds,ax
+    31 0000002F 66B83000                    mov ax,(6<<3)|(0)
+    32 00000033 8ED0                        mov ss,ax
+    33 00000035 EA[3E000000]0800            jmp 0x8:fuck
+    34 0000003C EBFE                        jmp $
+    35                                  ;
+    36                                  fuck:
+    37                                      ; mov ax,0x8
+    38                                      ; mov ds,ax
+    39                                      ; mov ax,ds:0
+    40 0000003E 31C0                        xor eax,eax
+    41 00000040 B8[57000000]                mov eax,r3
+    42 00000045 BB2B000000                  mov ebx,(5<<3)|(3);;cs
+    43                                      ;;SS
+    44 0000004A 6A3B                        push (7<<3)|(3)   ;;ss
+    45 0000004C 68FFFF0000                  push 0xffff
+    46 00000051 9C                          pushf
+    47 00000052 53                          push ebx
+    48 00000053 50                          push eax
+    49 00000054 CF                          iret
+    50 00000055 EBE7                        jmp fuck
+    51                                  r3:
+    52                                      ;;进入到了ring3
+    53                                      ;;jmp 0x20:r0
+    54 00000057 CD03                        int 3
+    55 00000059 90                          nop
+    56 0000005A 31C0                        xor eax,eax
+    57 0000005C 31DB                        xor ebx,ebx
+    58 0000005E EBF7                        jmp r3
+    59                                  r2:
+    60                                      ;;进入到了ring2
+    61 00000060 CD02                        int 2
+    62 00000062 90                          nop
+    63 00000063 31C0                        xor eax,eax
+    64 00000065 31DB                        xor ebx,ebx
+    65 00000067 CD00                        int 0
+    66 00000069 EBF5                        jmp r2
+    67                                  r0:
+    68 0000006B EA[6B000000]0800            jmp 0x8:r0
+    69                                  donothing:
+    70 00000072 EBFE                        jmp $
+    71                                  idt_func:
+    72 00000074 EBFE                        jmp $
+    73                                  gdtptr:
+    74 00000076 4F00                        dw 79
+    75 00000078 [7C000000]                  dd gdt_array
+    76                                  gdt_array:
+    77 0000007C 0000000000000000            dq 0                ;;0
+    78 00000084 FFFF0000009ECF00            dq 0xCF9E000000FFFF ;;8     一致性 r0
+    79 0000008C FFFF000000DECF00            dq 0xCFDE000000FFFF ;;10    一致性 r2
+    80 00000094 FFFF000000FECF00            dq 0xCFFE000000FFFF ;;18          r3
+    81 0000009C FFFF0000009ECF00            dq 0xCF9E000000FFFF ;;20    一致性r0
+    82 000000A4 FFFF000000FECF00            dq 0xCFFE000000FFFF ;;ring3 一致性
+    83 000000AC FFFF00000092CF00            dq 0xCF92000000FFFF ;;ring0 数据
+    84 000000B4 FFFF000000F2CF00            dq 0xCFF2000000FFFF ;;ring3 数据
+    85                                      ;dq 0xCFF2000000FFFF ;;ring3 stack
+    86                                      
+    87 000000BC [7200]                      dw donothing
+    88 000000BE 0800                        dw 0x8
+    89 000000C0 00                          db 0
+    90 000000C1 EC                          db 0xec
+    91 000000C2 0000                        dw 0
+    92                                      
+    93                                  
+    94                                  
+    95                                      ;tss
+    96 000000C4 6700                        dw 103
+    97 000000C6 [F200]                      dw tss
+    98 000000C8 00                          db 0
+    99 000000C9 89                          db 137
+   100 000000CA 10                          db 16
+   101 000000CB 00                          db 0
+   102                                  
+   103                                      ;
+   104                                      ; dq 0xCFEC000000FFFF ;;rin3 调用门
+   105                                  
+   106                                  idtptr:
+   107 000000CC 1F00                        dw 4*8-1
+   108 000000CE [D2000000]                  dd idt_array 
+   109                                  idt_array:
+   110 000000D2 [6B00]                      dw r0
+   111 000000D4 0800                        dw 0x8  ;;GDT的
+   112 000000D6 00                          db 0
+   113 000000D7 EE                          db 0xEE ;;自身的
+   114 000000D8 0000                        dw 0
+   115                                  
+   116 000000DA [6B00]                      dw r0
+   117 000000DC 0800                        dw 0x8
+   118 000000DE 00                          db 0
+   119 000000DF EE                          db 0xee
+   120 000000E0 0000                        dw 0
+   121                                  
+   122 000000E2 [6B00]                      dw r0
+   123 000000E4 0800                        dw 0x8
+   124 000000E6 00                          db 0
+   125 000000E7 EE                          db 0xee
+   126 000000E8 0000                        dw 0
+   127                                  
+   128                                  
+   129 000000EA 0000                        dw 0
+   130 000000EC 0900                        dw 9
+   131 000000EE 00E5                        dw 0xE500
+   132 000000F0 0000                        dw 0
+   133                                  
+   134                                  
+   135                                  
+   136                                  tss:
+   137 000000F2 00000000                    dd 0       ;last tss
+   138 000000F6 AAAA0000                    dd 0xaaaa  ;esp0
+   139 000000FA 40000000                    dd 8<<3    ;ss0
+   140 000000FE BBBB0000                    dd 0xbbbb ;esp1
+   141 00000102 40000000                    dd 8<<3 ;ss1
+   142 00000106 CC0C0000                    dd 0xccc ;esp2
+   143 0000010A 40000000                    dd 8<<3 ;ss2
+   144 0000010E 00000000                    dd 0 ;cr3
+   145 00000112 00000000                    dd 0 ;eip
+   146 00000116 00000000                    dd 0 ;eflags
+   147 0000011A 00000000                    dd 0 ;eax
+   148 0000011E 00000000                    dd 0 ;ecx
+   149 00000122 00000000                    dd 0 ;edx
+   150 00000126 00000000                    dd 0 ;ebx
+   151 0000012A 00000000                    dd 0 ;esp
+   152 0000012E 00000000                    dd 0 ;ebp
+   153 00000132 00000000                    dd 0 ;esi
+   154 00000136 00000000                    dd 0 ;edi
+   155 0000013A 00000000                    dd 0 ;es
+   156 0000013E 00000000                    dd 0 ;cs
+   157 00000142 00000000                    dd 0 ;ss
+   158 00000146 00000000                    dd 0 ;ds
+   159 0000014A 00000000                    dd 0 ;fs
+   160 0000014E 00000000                    dd 0 ;gs
+   161 00000152 00000000                    dd 0 ;ldt selector
+   162 00000156 00000000                    dd 0 ;io map
+   163                                  
+   164 0000015A 00<rep A4h>             times 510-($-$$) db 0
+   165 000001FE 55                      db 0x55
+   166 000001FF AA                      db 0xaa
+   167                                  
+   168                                  ;rsp = ffff
+   169                                  ;cs 2a   ss 42  ds 0  flags 0x46  tr 0x48
+   170                                  
+   171                                  ;cs a   ss 42  ds 0  
+   172                                  ;fff3
+   173                                  
+   174                                  ;r3此时的eflags
+   175                                  ;r3执行中断时的cs选择子
+   176                                  ;r3执行中断的下一条执行
+   177                                  
+   178                                  
+   179                                  ;rsp=ffff
+   180                                  ;cs 2b ss 43 tr 48 ef 46
+   181                                  
+   182                                  ;fff3
+   183                                  ;cs b
+   184                                  ;ss 43
