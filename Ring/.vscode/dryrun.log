@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/golangboy/Documents/Os/Ring'
+nasm boot.s -l dbg
+bochs -q -f bs
+make: Leaving directory `/Users/golangboy/Documents/Os/Ring'
+ 
